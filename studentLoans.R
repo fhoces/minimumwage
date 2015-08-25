@@ -13,15 +13,20 @@ monthlyPayment <- 524.75          # dollars/month
 # A lazy coder would just use '4'. Not this guy.
 weeksPerMonth <- 365.252 / 12 / 7 # days/year * year/month * weeks/day
 
-# Load the map, project the coordinates, and convert to a data.frame
-# TODO: Figure out how ids map to state abbrieviations
+# Load the map
 stateMap <- readOGR("times-approximate/shp", "Admin1_Polygons")
+# Pull out state codes
+stateMap@data$id <- rownames(stateMap@data)
+stateMap.data <- select(stateMap@data, id, ISO3166_2)
+# Calculate the projection
 stateMapProj <- spTransform(stateMap, CRS("+proj=merc"))
-stateMapDF <- fortify(stateMapProj)
+# Create data.frame and join in state codes
+stateMapDF <- fortify(stateMapProj, region = "id")
+stateMapDF <- left_join(stateMapDF, stateMap.data, by="id")
 
 # Draw the map
 # TODO: actual fill data
-p1 <- ggplot(stateMapDF, aes(long, lat, group=group, fill=as.factor(id))) + 
+p1 <- ggplot(stateMapDF, aes(long, lat, group=group, fill=ISO3166_2)) + 
   geom_polygon() + 
   geom_path(color="black", size=0.3) + 
   coord_equal() + 
