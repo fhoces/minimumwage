@@ -7,6 +7,7 @@ library(tidyr)
 
 # Get the living wage info from each state --------------------------------
 livingWageList <- list()
+expensesList <- list()
 for (stateIdx in 1:56) {
   # Try to get the state's source
   stateHTML <- tryCatch(html(sprintf("http://livingwage.mit.edu/states/%0.2d", stateIdx)),
@@ -27,15 +28,29 @@ for (stateIdx in 1:56) {
       html_table()
     stateLivingWage <- stateLivingWage[[1]]
     
-    # Add the state name to the table and tidy the data
+    # Tidy the data and add it to the list
     livingWageList[[length(livingWageList)+1]] <- stateLivingWage %>% 
       gather("household_type", "hourly_wage", -1) %>%
       rename(wage_level = `Hourly Wages`) %>% 
       mutate(state_name = stateName, 
              hourly_wage = as.numeric(sub("^\\$", "", hourly_wage)))
+    
+    # Grab the typical expenses table
+    stateExpenses <- stateHTML %>%
+      html_nodes(xpath="/html/body/div/div[2]/div[2]/table") %>%
+      html_table()
+    stateExpenses <- stateExpenses[[1]]
+    
+    # Tidy the data and add it to the list
+    expensesList[[length(expensesList)+1]] <- stateExpenses %>%
+      gather("household_type", "annual_cost", -1) %>%
+      rename(expense_category = `Annual Expenses`) %>%
+      mutate(state_name = stateName,
+             annual_cost = as.numeric(gsub("[\\$,]", "", annual_cost)))
   }
 }
 livingWage <- bind_rows(livingWageList)
+typicalExpenses <- bind_rows(expensesList)
 
 
 # Pull out the redundant minimum wage info into its own table -------------
@@ -53,3 +68,4 @@ livingWage <- livingWage %>%
 
 write.csv(minimumWage, "minimum_wage.csv", row.names = FALSE)
 write.csv(livingWage, "living_wage.csv", row.names = FALSE)
+write.csv(typicalExpenses, "typical_expenses.csv", row.names = FALSE)
